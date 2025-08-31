@@ -62,20 +62,5 @@ jobs:
           docker tag mlops_ci_cd_iris:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
 
-    steps:
-      # Step 9: SSH into EC2 and deploy
-      - name: SSH into EC2 and deploy container
-        uses: appleboy/ssh-action@v0.1.10
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            docker pull 528757800215.dkr.ecr.us-east-1.amazonaws.com/mlops_ci_cd_iris_reg:latest
-            docker stop mlops_ci_cd_iris || true
-            docker rm mlops_ci_cd_iris || true
-            docker run -d --restart always --name mlops_ci_cd_iris -p 7500:7005 528757800215.dkr.ecr.us-east-1.amazonaws.com/mlops_ci_cd_iris_reg:latest
+          
