@@ -39,3 +39,24 @@ jobs:
       # Step 5: Build Docker image
       - name: Build Docker image
         run: docker build -t mlops_ci_cd_iris .
+       # Step: Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Step6: Login to ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Step7: Tag and Push Docker image to ECR
+      - name: Tag and Push to ECR
+        run: |
+          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY=mlops-ci-cd-iris   # change this to your repo name
+          IMAGE_TAG=latest
+          docker tag mlops_ci_cd_iris:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
