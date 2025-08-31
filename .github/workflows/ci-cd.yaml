@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
@@ -39,7 +39,8 @@ jobs:
       # Step 5: Build Docker image
       - name: Build Docker image
         run: docker build -t mlops_ci_cd_iris .
-       # Step: Configure AWS credentials
+
+      # Step 6: Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -47,16 +48,34 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # Step6: Login to ECR
+      # Step 7: Login to ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Step7: Tag and Push Docker image to ECR
+      # Step 8: Tag and Push Docker image to ECR
       - name: Tag and Push to ECR
         run: |
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY=mlops_ci_cd_iris_reg   # change this to your repo name
+          ECR_REPOSITORY=mlops_ci_cd_iris_reg   # your ECR repo name
           IMAGE_TAG=latest
           docker tag mlops_ci_cd_iris:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      # Step 9: SSH into EC2 and deploy
+      - name: SSH into EC2 and deploy container
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull 528757800215.dkr.ecr.us-east-1.amazonaws.com/mlops_ci_cd_iris_reg:latest
+            docker stop mlops_ci_cd_iris || true
+            docker rm mlops_ci_cd_iris || true
+            docker run -d --restart always --name mlops_ci_cd_iris -p 7500:7005 528757800215.dkr.ecr.us-east-1.amazonaws.com/mlops_ci_cd_iris_reg:latest
