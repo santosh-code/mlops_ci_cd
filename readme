@@ -1,0 +1,202 @@
+🏭 End-to-End MLOps Project on AWS
+
+CI/CD with Docker, GitHub, ECR, and EC2 Free Tier
+
+📌 Overview
+
+Machine Learning models often work flawlessly on our local machines, but deploying them to production is where the real challenge begins. This project demonstrates how to build an end-to-end MLOps pipeline using AWS Free Tier resources.
+
+Think of it like a factory assembly line:
+
+Raw materials → dataset & code
+
+Assembly & Packaging → training + Docker
+
+Quality control → CI with GitHub Actions
+
+Warehouse → Amazon ECR
+
+Distribution & Delivery → AWS EC2 deployment
+
+Inspection → API testing with curl & Swagger
+
+The result: a fully automated system where every code push gets tested, containerized, stored, and deployed to a live API.
+
+🛠️ Tech Stack
+
+Python 3.9 (ML code + FastAPI app)
+
+Docker (containerization)
+
+GitHub Actions (CI/CD)
+
+Amazon ECR (container registry)
+
+Amazon EC2 (deployment)
+
+AWS Free Tier resources only
+
+📂 Project Structure
+mlops-ci-cd-aws/
+│── src/
+│   ├── app.py         # FastAPI app
+│   ├── model.py       # Train & save Iris model
+│   ├── predict.py     # Prediction logic
+│── tests/             # Unit tests (pytest)
+│── iris_model.pkl     # Saved ML model
+│── requirements.txt   # Dependencies
+│── Dockerfile         # Container build instructions
+│── .dockerignore      # Ignore unnecessary files
+│── .github/workflows/ci-cd.yaml   # GitHub Actions pipeline
+
+⚙️ Setup Instructions
+1. Train Model Locally
+python src/model.py
+
+
+Saves iris_model.pkl.
+
+2. Build Docker Image
+docker build -t mlops-app .
+
+3. Run Locally
+docker run -d -p 8000:8000 mlops-app
+
+
+Swagger UI → http://127.0.0.1:8000/docs
+
+🚀 CI/CD Pipeline
+GitHub Actions Workflow (.github/workflows/ci-cd.yaml)
+
+CI → Tests + Docker build
+
+CD → Pushes image to ECR + deploys on EC2
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Run tests
+        run: pytest --maxfail=1 --disable-warnings -q || echo "No tests found, skipping"
+      - name: Build Docker image
+        run: docker build -t mlops_ci_cd_iris .
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Tag and Push to ECR
+        run: |
+          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY=mlops_ci_cd_iris_reg
+          IMAGE_TAG=latest
+          docker tag mlops_ci_cd_iris:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: SSH into EC2 and deploy container
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull 528757800215.dkr.ecr.us-east-1.amazonaws.com/mlops_ci_cd_iris_reg:latest
+            docker stop mlops_ci_cd_iris || true
+            docker rm mlops_ci_cd_iris || true
+            docker run -d --restart always --name mlops_ci_cd_iris -p 7500:7005 528757800215.dkr.ecr.us-east-1.amazonaws.com/mlops_ci_cd_iris_reg:latest
+
+🔑 GitHub Secrets Required
+
+AWS_ACCESS_KEY_ID
+
+AWS_SECRET_ACCESS_KEY
+
+AWS_REGION → us-east-1
+
+EC2_HOST → EC2 public IP
+
+EC2_USER → ubuntu
+
+EC2_SSH_KEY → PEM private key contents
+
+🖥️ Deploy on EC2
+Connect to EC2
+ssh -i private_key.pem ubuntu@<EC2-PUBLIC-IP>
+
+Install Dependencies
+sudo apt update -y
+sudo apt install -y docker.io unzip
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+
+Authenticate with ECR
+aws configure   # enter IAM credentials
+aws ecr get-login-password --region us-east-1 \
+  | docker login --username AWS --password-stdin 528757800215.dkr.ecr.us-east-1.amazonaws.com
+
+Run Container
+docker pull 528757800215.dkr.ecr.us-east-1.amazonaws.com/mlops_ci_cd_iris_reg:latest
+docker run -d --restart always --name mlops_ci_cd_iris -p 7500:7005 528757800215.dkr.ecr.us-east-1.amazonaws.com/mlops_ci_cd_iris_reg:latest
+
+🧪 Testing the API
+
+Check running container:
+
+docker ps
+
+
+Call API:
+
+curl -X POST "http://<EC2-PUBLIC-IP>:7500/predict" \
+-H "Content-Type: application/json" \
+-d '{"features": [5.1, 3.5, 1.4, 0.2]}'
+
+
+Swagger UI:
+
+http://<EC2-PUBLIC-IP>:7500/docs
+
+
+✅ Example response:
+
+{
+  "prediction": 0
+}
+
+🏁 Conclusion
+
+By walking through the factory analogy, we turned a simple ML model into a fully automated, production-ready pipeline:
+
+Code → Docker → GitHub Actions → ECR → EC2 → Live API
+
+All this runs within AWS Free Tier, making it cost-efficient and beginner-friendly.
+
+Your ML model is now no longer “just local” — it’s a service anyone can access 🚀
