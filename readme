@@ -127,7 +127,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            docker pull 528757800215.dkr.ecr.us-east-1.amazonaws.com/mlops_ci_cd_iris_reg:latest
+            docker pull 1234523.dkr.ecr.us-east-1.amazonaws.com/mlops_ci_cd_iris_reg:latest
             docker stop mlops_ci_cd_iris || true
             docker rm mlops_ci_cd_iris || true
             docker run -d --restart always --name mlops_ci_cd_iris -p 7500:7005 528757800215.dkr.ecr.us-east-1.amazonaws.com/mlops_ci_cd_iris_reg:latest
@@ -200,3 +200,4 @@ Code → Docker → GitHub Actions → ECR → EC2 → Live API
 All this runs within AWS Free Tier, making it cost-efficient and beginner-friendly.
 
 Your ML model is now no longer “just local” — it’s a service anyone can access 🚀
+
